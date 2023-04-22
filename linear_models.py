@@ -122,3 +122,46 @@ class LogisticRegression:
 
 
 
+class Um_contra_todos:
+
+    def __init__(self, model, digitos):
+        self.model = model
+        self.digitos = digitos
+        self.all_w = []
+
+
+    def execute(self, X_train, y_train):
+
+        for i, d in enumerate(self.digitos[:-1]):
+            # atribua a classe i como positiva e as outras como negativas
+            if i == 0:
+                y_train_i = np.where(y_train == d, 1, -1)
+                
+                self.model.fit(X_train, y_train_i)
+                self.all_w.append(self.model.get_w())
+                d_anterior = d
+
+            else:
+                X_train = np.delete(X_train, np.where(y_train == d_anterior), axis=0)
+                y_train = np.delete(y_train, np.where(y_train == d_anterior))
+                y_train_i = np.where(y_train == d, 1, -1)
+                
+                self.model.fit(X_train, y_train_i)
+                self.all_w.append(self.model.get_w())
+                d_anterior = d
+        
+    def predict_digit(self, X):
+        predictions = []
+        for i, x in enumerate(X):
+            for j, d in enumerate(self.digitos[:-1]):
+                if np.sign(self.all_w[j] @ x) == 1:
+                    predictions.append(d)
+                    break
+
+            if len(predictions) < i+1:
+                predictions.append(self.digitos[-1])
+
+        return np.array(predictions)
+
+    def get_all_w(self):
+        return self.all_w

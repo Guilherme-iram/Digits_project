@@ -2,29 +2,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
+from sklearn.metrics import accuracy_score
 
 
 def calculate_y(x, w):
     return (-w[0] - w[1]*x) / w[2]
 
 
-def plot_classification_digits(df, digits_list, colors_list, titulo, W=[]):
+def plot_classification_digits(df, digits_list, titulo, ax=None,  W=[]):
     
-    colors = {digits_list[i]: colors_list[i] for i in range(len(digits_list))}
+
+    colors = ['red', 'gold', 'green', 'purple']
     
     # y = calculate_y(df.intensidade, w)
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for label in df.label.unique():
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 6))
+    else:
+        fig = ax.get_figure()
+
+    for i, label in enumerate(df.label.unique()):
         data = df[df.label == label]
-        ax.scatter(data.intensidade, data.simetria, color=colors[label], label=label)
+        ax.scatter(data.intensidade, data.simetria, color=colors[i], label=label)
 
     if len(W) > 0:
         linestyles = ['dashed', 'dotted', 'dashdot', 'dotted']
+        colors_w = ['black', 'blue', 'gray']
         for i, w in enumerate(W):
             x_values = np.array([df.intensidade.min(), df.intensidade.max()])
             y_values = calculate_y(x_values, w)
             ax.plot(x_values, y_values,
-             color=colors[digits_list[i]],
+             color=colors_w[i],
               linestyle=linestyles[i],
                label=f'Reta {digits_list[i]}X{digits_list[i + 1:len(w) + 1]}')
 
@@ -34,8 +41,7 @@ def plot_classification_digits(df, digits_list, colors_list, titulo, W=[]):
     ax.set_ylabel('Simetria')
     ax.set_title(titulo)
     ax.set_xlim([40, 165])
-    ax.set_ylim([55, 170]) 
-    plt.show()
+    ax.set_ylim([55, 170])
 
 # _________________________________________________________________________________________________________________
 
@@ -45,6 +51,7 @@ def binary_error(y_true, y_pred):
 
 def acuracy_confusion_matrix(VP: int, VN: int, FP: int, FN:int) -> float:
     return (VP+VN)/(VP+VN+FP+FN)
+
 
 def plot_confusion_matrix(VP, VN, FP, FN):
     cm = np.array([[VP, FP], [FN, VN]])
@@ -160,15 +167,79 @@ def multiclass_confusion_matrix(y_true, y_pred):
     return cm
 
 
-def confusion_matrix_plot(y_test, y_pred):
+def confusion_matrix_plot(y_test, y_pred, ax=None):
+
     cm = multiclass_confusion_matrix(y_test, y_pred)
     labels = set(y_test)
-    # plot the confusion matrix
-    plt.figure(figsize=(8, 5))
-    sns.heatmap(cm, annot=True, fmt='d' ,linewidths=.5, square = True, cmap = 'Blues', xticklabels=labels, yticklabels=labels)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
 
-    plt.ylabel('Actual label', size = 12)
-    plt.xlabel('Predicted label', size = 12)
-    # all_sample_title = f'Accuracy Score: {accuracy_score(y_test, ypred):.4f}'
-    # plt.title(all_sample_title, size = 15)
-    plt.show()
+    sns.heatmap(cm, annot=True, fmt='d' ,linewidths=.5, square = True, cmap = 'Blues', xticklabels=labels, yticklabels=labels, ax=ax)
+    ax.set_title(f"Acurracy Score: {np.sum(np.diag(cm)) / np.sum(cm):.4f}", size = 15)
+    ax.set_ylabel('Actual label', size = 12)
+    ax.set_xlabel('Predicted label', size = 12)
+
+
+# _________________________________________________________________________________________________________________
+
+class Metrics_multiclass:
+
+    def __init__(self, digits):
+        self.digits = sorted(digits)
+
+
+    def multiclass_error(self, y_true, y_pred):
+        return np.sum(y_true != y_pred) / len(y_true)
+
+
+    def precision_multiclass(self, y_true, y_pred, label):
+        cm = multiclass_confusion_matrix(y_true, y_pred)
+        return cm[self.digits.index(label), self.digits.index(label)] \
+            / np.sum(cm[:, self.digits.index(label)])
+
+
+    def recall_multiclass(self, y_true, y_pred, label):
+        cm = multiclass_confusion_matrix(y_true, y_pred)
+        return cm[self.digits.index(label), self.digits.index(label)] / np.sum(cm[self.digits.index(label), :])
+
+
+    def f1_score_multiclass(self, y_true, y_pred, label):
+        return 2 * self.precision_multiclass(y_true, y_pred, label) * self.recall_multiclass(y_true, y_pred, label)\
+            / (self.precision_multiclass(y_true, y_pred, label) + self.recall_multiclass(y_true, y_pred, label))
+
+
+    def weighted_f1_score_multiclass(self, y_true, y_pred):
+        labels = sorted(np.unique(y_true))
+        n = len(labels)
+        score = 0
+        for label in labels:
+            score += self.f1_score_multiclass(y_true, y_pred, label)
+        return score / n
+
+
+    def acurracy_multiclass(self, y_true, y_pred):
+        return np.sum(y_true == y_pred) / len(y_true)
+
+
+    def print_metrics_multiclass(self, y_true, y_pred):
+        labels = sorted(np.unique(y_true))
+        n = len(labels)
+
+        print("---------------------------------")
+        print("RELATORIO CLASSIFICACAO MULTICLASS")
+        print("_______________________________________________________")
+        print("Acurracy:", self.acurracy_multiclass(y_true, y_pred))
+        print("Multiclass Error:", self.multiclass_error(y_true, y_pred))
+        print("_______________________________________________________")
+        for label in labels:
+            print("_______________________________________________________")
+            print("Precision for label", label, ":", self.precision_multiclass(y_true, y_pred, label))
+            print("Recall for label", label, ":", self.recall_multiclass(y_true, y_pred, label))
+            print("F1 Score for label", label, ":", self.f1_score_multiclass(y_true, y_pred, label))
+            print("_______________________________________________________")
+        print("Weighted F1 Score:", self.weighted_f1_score_multiclass(y_true, y_pred))
+        print("---------------------------------")
+        confusion_matrix_plot(y_true, y_pred)
+
+# _________________________________________________________________________________________________________________
+

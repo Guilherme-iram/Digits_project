@@ -9,6 +9,9 @@ from tqdm import tqdm
 
 class LinearRegression():
 
+    def __str__(self):
+        return "Linear Regression"
+
     def fit(self, X, y):
         h = np.dot(X.T, X)
         g = np.dot(X.T, y)
@@ -28,6 +31,9 @@ class PocketPLA():
         self.Nmin = Nmin
         self.Nmax = Nmax
 
+    def __str__(self):
+        return "Pocket PLA"
+
     def fit(self, X, y):
 
         X = np.array(X)
@@ -41,7 +47,7 @@ class PocketPLA():
         for j in tqdm(range(self.iter)):
             
             N = random.randint(self.Nmin, self.Nmax)
-            indexes = np.random.randint(len(X), size=N)
+            indexes = np.random.randint(len(X) - 1, size=N)
             X_ = X[indexes]
             y_ = y[indexes]
 
@@ -79,6 +85,9 @@ class LogisticRegression:
         self.tmax = tmax
         self.batch_size = batch_size
         self.w = None
+
+    def __str__(self):
+        return "Logistic Regression"
     
     def fit(self, X, y, lamb=1e-6):
         N, d = X.shape
@@ -95,12 +104,12 @@ class LogisticRegression:
 
             sigm = 1 / (1 + np.exp(y_batch.reshape(-1, 1) * np.dot(w, X_batch.T).reshape(-1, 1)))
             gt = - 1 / N * np.sum(X_batch * y_batch.reshape(-1, 1) * sigm, axis=0) 
-            gt += lamb * np.linalg.norm(w)
+            # gt += 2 * lamb * w
 
             if np.linalg.norm(gt) < 1e-8:
                 break
             
-            w -= self.eta * gt
+            w -= self.eta * gt # - (self.eta * lamb * w)
 
         self.w = w 
     
@@ -130,7 +139,9 @@ class Um_contra_todos:
         self.all_w = []
 
 
-    def execute(self, X_train, y_train):
+    def execute(self, X_train_, y_train_):
+        X_train = X_train_.copy()
+        y_train = y_train_.copy()
 
         for i, d in enumerate(self.digitos[:-1]):
             # atribua a classe i como positiva e as outras como negativas

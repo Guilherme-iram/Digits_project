@@ -92,30 +92,32 @@ class LogisticRegression:
     def fit(self, X, y, lamb=1e-6):
         N, d = X.shape
         X = np.array(X)
-        y = np.array(y)# .reshape(-1, 1)
+        y = np.array(y).reshape(-1, 1)
         w = np.zeros(d)
 
         for t in tqdm(range(self.tmax)):
             if self.batch_size < N:
                 rand_indexes = np.random.choice(N, self.batch_size, replace=False)
                 X_batch, y_batch = X[rand_indexes], y[rand_indexes]
+                # N = self.batch_size
             else:
                 X_batch, y_batch = X, y
 
-            sigm = 1 / (1 + np.exp(y_batch.reshape(-1, 1) * np.dot(w, X_batch.T).reshape(-1, 1)))
-            gt = - 1 / N * np.sum(X_batch * y_batch.reshape(-1, 1) * sigm, axis=0) 
+            sigm = 1 / (1 + np.exp(y_batch * np.dot(w, X_batch.T).reshape(-1, 1)))
+            gt = - 1 / N * np.sum(X_batch * y_batch * sigm, axis=0) 
             # gt += 2 * lamb * w
 
-            if np.linalg.norm(gt) < 1e-8:
+            if np.linalg.norm(gt) < 1e-6:
                 break
             
-            w -= self.eta * gt # - (self.eta * lamb * w)
+            w -= self.eta  * gt  # * np.linalg.norm(gt) - (self.eta * lamb * w)
 
-        self.w = w 
+        self.w = w
     
 
     def predict_prob(self, X):
         return 1 / (1 + np.exp(-np.dot(X, self.w)))
+
 
     def predict(self, X):
         pred = self.predict_prob(X)
@@ -126,6 +128,7 @@ class LogisticRegression:
     def get_w(self):
         return self.w
     
+
     def set_w(self, w):
         self.w = w
 
@@ -161,6 +164,7 @@ class Um_contra_todos:
                 self.all_w.append(self.model.get_w())
                 d_anterior = d
         
+
     def predict_digit(self, X):
         predictions = []
         for i, x in enumerate(X):
@@ -174,5 +178,10 @@ class Um_contra_todos:
 
         return np.array(predictions)
 
+
     def get_all_w(self):
         return self.all_w
+
+
+    def set_all_w(self, all_w):
+        self.all_w = all_w

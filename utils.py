@@ -5,19 +5,47 @@ from collections import Counter
 from sklearn.metrics import accuracy_score
 
 
+# _______________________________________ Reducao de dimensionalidade _______________________________________
+
+def simetria_vertical_digito(matrixes):
+    res = []
+    for matrix in matrixes:
+        soma = 0
+        for i in range(0, 28):
+            for j in range(0, 14):
+                soma += abs(matrix[(28 * i) + j] - matrix[(28 * i) + 27 - j])
+        res.append(soma / 255.0)
+    return np.array(res)
+
+    
+def simetria_horizontal_digito(matrixes):
+    res = []
+    for matrix in matrixes:
+        soma = 0
+        for i in range(0, 14):
+            for j in range(0, 28):
+                soma += abs(matrix[(28 * i) + j] - matrix[(28 * (27 - i)) + j])
+        res.append(soma / 255.0)
+    return np.array(res)
+
+
+def intensidade_digito(matrixes): 
+    return np.array([sum(matrix) / 255.0 for matrix in matrixes])
+
+# _____________________________________ Classificação de Dígitos _____________________________________
+
 def calculate_y(x, w):
     return (-w[0] - w[1]*x) / w[2]
 
 
 def plot_classification_digits(df, digits_list, titulo, ax=None,  W=[]):
-    
 
     colors = ['red', 'gold', 'green', 'purple']
     
-    # y = calculate_y(df.intensidade, w)
-    if ax is None:
+    if ax == None:
         fig, ax = plt.subplots(figsize=(10, 6))
     else:
+        # possivelmente apagar essa linha
         fig = ax.get_figure()
 
     for i, label in enumerate(df.label.unique()):
@@ -33,7 +61,7 @@ def plot_classification_digits(df, digits_list, titulo, ax=None,  W=[]):
             ax.plot(x_values, y_values,
              color=colors_w[i],
               linestyle=linestyles[i],
-               label=f'Reta {digits_list[i]}X{digits_list[i + 1:len(w) + 1]}')
+               label=f'Reta {digits_list[i]}x{digits_list[i + 1:len(w) + 1]}')
 
 
     ax.legend()
@@ -43,114 +71,7 @@ def plot_classification_digits(df, digits_list, titulo, ax=None,  W=[]):
     ax.set_xlim([40, 165])
     ax.set_ylim([55, 170])
 
-# _________________________________________________________________________________________________________________
-
-def binary_error(y_true, y_pred):
-    return np.sum(y_true != y_pred) / len(y_true)
-
-
-def acuracy_confusion_matrix(VP: int, VN: int, FP: int, FN:int) -> float:
-    return (VP+VN)/(VP+VN+FP+FN)
-
-
-def plot_confusion_matrix(VP, VN, FP, FN):
-    cm = np.array([[VP, FP], [FN, VN]])
-    ax = sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    ax.set(ylabel='Predicted', xlabel='Actual')
-    ax.set_title('Confusion Matrix')
-    plt.show()
-
-
-def positive_precision(VP: int, FP: int) -> float:
-    if VP + FP != 0:
-        return VP / (VP + FP)
-    else: 
-        return VP
-
-
-def negative_precision(VN: int, FN:int) -> float:
-    if VN + FN != 0:
-        return VN / (VN + FN)
-    else: 
-        return VN
-
-
-def positive_recall(VP: int, FN: int) -> float:
-    if VP + FN != 0:
-        return VP / (VP + FN)
-    else:
-        return VP
-
-
-def negative_recall(VN: int, FP: int) -> float:
-    if VN + FP != 0:
-        return VN / (VN + FP)
-    else: 
-        return VN
-
-
-def positive_f1_score(VP: int, FP: int, FN: int) -> float:
-    try:
-        return 2 * positive_precision(VP, FP) * positive_recall(VP, FN)\
-        /  (positive_precision(VP, FP) + positive_recall(VP, FN))
-    except:
-        return  2 * positive_precision(VP, FP) * positive_recall(VP, FN)
-
-
-def negative_f1_score(VN: int, FP: int, FN: int) -> float:
-    try:
-        return 2 * negative_precision(VN, FN) * negative_recall(VN, FP)\
-        /  (negative_precision(VN, FN) + negative_recall(VN, FP))
-    except: 
-        return 2 * negative_precision(VN, FN) * negative_recall(VN, FP)
-
-
-def weighted_f1_score(VP: int, VN: int, FP: int, FN: int, one_label: int, zero_label: int) -> float:
-    return (one_label * positive_f1_score(VP, FP, FN) + zero_label * negative_f1_score(VN, FP, FN)) / (one_label + zero_label)
-
-
-def calculate_VP_VN_FP_FN(y_test, pred):
-    VP, VN, FP, FN = 0, 0, 0, 0
-
-    for i in range(len(y_test)):
-
-        if(y_test[i] == 1):
-            if(pred[i] == 1):
-                VP += 1
-            else:
-                FN += 1
-        else:
-            if(pred[i] == 1):
-                FP += 1
-            else:
-                VN += 1
-
-    return VP, VN, FP, FN
-
-
-def print_metrics(y_test, pred):
-    count_label = Counter(y_test)
-    print(count_label)
-    one_label = count_label[1]
-    zero_label = count_label[-1]
-    VP, VN, FP, FN = calculate_VP_VN_FP_FN(y_test, pred)
-    print("RELATORIO CLASSIFICACAO BINARIA")
-    print("one_label: ", one_label)
-    print("zero_label: ", zero_label)
-    print("VP: " + str(VP))
-    print("VN: " + str(VN))
-    print("FP: " + str(FP))
-    print("FN: " + str(FN))
-    print("Binary Error:", binary_error(y_test, pred))
-    print("Acurracy:", acuracy_confusion_matrix(VP, VN, FP, FN))
-    print("positive precision: ", positive_precision(VP, FP))
-    print("negative precision: ", negative_precision(VN, FN))
-    print("positive recall: ", positive_recall(VP, FN))
-    print("negative recall: ", negative_recall(VN, FP))
-    print("positive f1 score: ", positive_f1_score(VP, FP, FN))
-    print("negative f1 score: ", negative_f1_score(VN, FP, FN))
-    print("weighted_f1_score: ", weighted_f1_score(VP, VN, FP, FN, one_label, zero_label))
-    plot_confusion_matrix(VP, VN, FP, FN)
+# _______________________________________ Matriz de Confusão _______________________________________
 
 
 def multiclass_confusion_matrix(y_true, y_pred):
@@ -180,7 +101,7 @@ def confusion_matrix_plot(y_test, y_pred, ax=None):
     ax.set_xlabel('Predicted label', size = 12)
 
 
-# _________________________________________________________________________________________________________________
+# _______________________________________ Métrica Multiclasses _______________________________________
 
 class Metrics_multiclass:
 
@@ -188,19 +109,24 @@ class Metrics_multiclass:
         self.digits = sorted(digits)
 
 
+    def acurracy_multiclass(self, y_true, y_pred):
+        return np.sum(y_true == y_pred) / len(y_true)
+
+
     def multiclass_error(self, y_true, y_pred):
-        return np.sum(y_true != y_pred) / len(y_true)
+        return 1 - accuracy_score(y_true, y_pred)
 
 
     def precision_multiclass(self, y_true, y_pred, label):
         cm = multiclass_confusion_matrix(y_true, y_pred)
         return cm[self.digits.index(label), self.digits.index(label)] \
-            / np.sum(cm[:, self.digits.index(label)])
+            / np.sum(cm[:, self.digits.index(label)]) # Somas das colunas do digito
 
 
     def recall_multiclass(self, y_true, y_pred, label):
         cm = multiclass_confusion_matrix(y_true, y_pred)
-        return cm[self.digits.index(label), self.digits.index(label)] / np.sum(cm[self.digits.index(label), :])
+        return cm[self.digits.index(label), self.digits.index(label)] /\
+             np.sum(cm[self.digits.index(label), :])  # Soma da linha do digito
 
 
     def f1_score_multiclass(self, y_true, y_pred, label):
@@ -209,37 +135,29 @@ class Metrics_multiclass:
 
 
     def weighted_f1_score_multiclass(self, y_true, y_pred):
-        labels = sorted(np.unique(y_true))
-        n = len(labels)
-        score = 0
-        for label in labels:
-            score += self.f1_score_multiclass(y_true, y_pred, label)
-        return score / n
-
-
-    def acurracy_multiclass(self, y_true, y_pred):
-        return np.sum(y_true == y_pred) / len(y_true)
+        return sum([self.f1_score_multiclass(y_true, y_pred, label) for label in self.digits]) / len(self.digits)
 
 
     def print_metrics_multiclass(self, y_true, y_pred):
-        labels = sorted(np.unique(y_true))
+
+        labels = self.digits
         n = len(labels)
 
         print("---------------------------------")
         print("RELATORIO CLASSIFICACAO MULTICLASS")
         print("_______________________________________________________")
-        print("Acurracy:", self.acurracy_multiclass(y_true, y_pred))
-        print("Multiclass Error:", self.multiclass_error(y_true, y_pred))
+        print(f"Acurracy: {self.acurracy_multiclass(y_true, y_pred):.4f}")
+        print(f"Error de Classificacao: {self.multiclass_error(y_true, y_pred):.4f}")
         print("_______________________________________________________")
-        for label in labels:
+        for d in self.digits:
             print("_______________________________________________________")
-            print("Precision for label", label, ":", self.precision_multiclass(y_true, y_pred, label))
-            print("Recall for label", label, ":", self.recall_multiclass(y_true, y_pred, label))
-            print("F1 Score for label", label, ":", self.f1_score_multiclass(y_true, y_pred, label))
+            print(f"Precision para digito {d}: {self.precision_multiclass(y_true, y_pred, d):.4f}")
+            print(f"Recall para digito {d}: {self.recall_multiclass(y_true, y_pred, d):.4f}")
+            print(f"F1 Score para digito {d}: {self.f1_score_multiclass(y_true, y_pred, d):.4f}")
             print("_______________________________________________________")
-        print("Weighted F1 Score:", self.weighted_f1_score_multiclass(y_true, y_pred))
+        print(f"Weighted F1 Score: {self.weighted_f1_score_multiclass(y_true, y_pred):.4f}")
         print("---------------------------------")
         confusion_matrix_plot(y_true, y_pred)
 
-# _________________________________________________________________________________________________________________
+# _____________________________________________________________________________________________________________________
 

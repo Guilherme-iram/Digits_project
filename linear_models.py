@@ -65,6 +65,8 @@ class PocketPLA():
                     if(bestError > eIN):
                         bestError = eIN
                         bestW = self.w
+                        if bestError == 0:
+                            break
 
         self.w = bestW
 

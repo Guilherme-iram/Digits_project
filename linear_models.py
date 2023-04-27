@@ -2,12 +2,16 @@ import numpy as np
 from numpy.linalg import pinv
 from numpy.linalg import inv
 import numpy.linalg as LA
+import pandas as pd
 import random
 from random import sample 
 from tqdm import tqdm
 
 
 class LinearRegression():
+
+    def __init__(self, iter=None):
+        self.iter = iter
 
     def __str__(self):
         return "Linear Regression"
@@ -34,7 +38,10 @@ class PocketPLA():
     def __str__(self):
         return "Pocket PLA"
 
-    def fit(self, X, y):
+    def fit(self, X, y, iter=None):
+        
+        if iter is not None:
+            self.iter = iter
 
         X = np.array(X)
         y = np.array(y)
@@ -80,78 +87,79 @@ class PocketPLA():
 
 class LogisticRegression:
     
-    def __init__(self, eta=0.1, tmax=1000, batch_size=2048):
+    def __init__(self, eta=0.1, iter=1000, batch_size=2048):
         self.eta = eta
-        self.tmax = tmax
+        self.iter = iter
         self.batch_size = batch_size
         self.w = None
 
     def __str__(self):
         return "Logistic Regression"
     
-    def fit(self, X, y, lamb=1e-6):
+    def fit(self, X, y, iter=None, lamb=1e-6):
+
+        if iter is not None:
+            self.iter = iter
+
         N, d = X.shape
         X = np.array(X)
         y = np.array(y).reshape(-1, 1)
         w = np.zeros(d)
 
-        for t in tqdm(range(self.tmax)):
+        for t in tqdm(range(self.iter)):
             if self.batch_size < N:
                 rand_indexes = np.random.choice(N, self.batch_size, replace=False)
                 X_batch, y_batch = X[rand_indexes], y[rand_indexes]
-                # N = self.batch_size
+                N_batch = self.batch_size
             else:
                 X_batch, y_batch = X, y
+                N_batch = N
 
             sigm = 1 / (1 + np.exp(y_batch * np.dot(w, X_batch.T).reshape(-1, 1)))
-            gt = - 1 / N * np.sum(X_batch * y_batch * sigm, axis=0) 
+            gt = - 1 / N_batch * np.sum(X_batch * y_batch * sigm, axis=0) 
             # gt += 2 * lamb * w
 
-            if np.linalg.norm(gt) < 1e-6:
+            if np.linalg.norm(gt) < 1e-10:
                 break
             
-            w -= self.eta  * gt  # * np.linalg.norm(gt) - (self.eta * lamb * w)
+            w -= self.eta  * gt 
 
         self.w = w
     
-
     def predict_prob(self, X):
         return 1 / (1 + np.exp(-np.dot(X, self.w)))
-
 
     def predict(self, X):
         pred = self.predict_prob(X)
         y = np.where(pred >= 0.5, 1, -1)
         return y 
 
-
     def get_w(self):
         return self.w
     
-
     def set_w(self, w):
         self.w = w
 
 
-
 class Um_contra_todos:
 
-    def __init__(self, model, digitos):
-        self.model = model
+    def __init__(self, model=None, digitos=None, iters = None):
+        self.model = model 
         self.digitos = digitos
         self.all_w = []
-
+        self.iters = iters
 
     def execute(self, X_train_, y_train_):
         X_train = X_train_.copy()
         y_train = y_train_.copy()
 
         for i, d in enumerate(self.digitos[:-1]):
-            # atribua a classe i como positiva e as outras como negativas
             if i == 0:
                 y_train_i = np.where(y_train == d, 1, -1)
-                
-                self.model.fit(X_train, y_train_i)
+                if self.iters is None:
+                    self.model.fit(X_train, y_train_i)
+                else:
+                    self.model.fit(X_train, y_train_i, iter=self.iters[i])
                 self.all_w.append(self.model.get_w())
                 d_anterior = d
 
@@ -159,12 +167,13 @@ class Um_contra_todos:
                 X_train = np.delete(X_train, np.where(y_train == d_anterior), axis=0)
                 y_train = np.delete(y_train, np.where(y_train == d_anterior))
                 y_train_i = np.where(y_train == d, 1, -1)
-                
-                self.model.fit(X_train, y_train_i)
+                if self.iters is None:
+                    self.model.fit(X_train, y_train_i)
+                else:
+                    self.model.fit(X_train, y_train_i, iter=self.iters[i])
                 self.all_w.append(self.model.get_w())
                 d_anterior = d
         
-
     def predict_digit(self, X):
         predictions = []
         for i, x in enumerate(X):
@@ -178,10 +187,30 @@ class Um_contra_todos:
 
         return np.array(predictions)
 
-
     def get_all_w(self):
         return self.all_w
 
-
     def set_all_w(self, all_w):
         self.all_w = all_w
+
+    def save_all_w(self, file='best_W.csv'):
+
+        all_w_df = pd.read_csv(file)
+        new_raw = {"w0": self.all_w[0],
+                    "w1": self.all_w[1],
+                     "w2": self.all_w[2],
+                      "digitos": self.digitos,
+                       "modelo": str(self.model)}
+        all_w_df = all_w_df.append(new_raw, ignore_index=True)
+        all_w_df.to_csv(file, index=False)
+
+    def load_all_w(self, file='best_W.csv', index=0):
+        
+        all_w_df = pd.read_csv(file)
+        linha = all_w_df.iloc[index, :]
+
+        w0 = [float(w) for w in linha['w0'][1: -1].strip().split(" ") if w != '']
+        w1 = [float(w) for w in linha['w1'][1: -1].strip().split(" ") if w != '']
+        w2 = [float(w) for w in linha['w2'][1: -1].strip().split(" ") if w != '']
+        self.all_w = np.array([w0, w1, w2])
+        self.digitos = [int(d) for d in linha['digitos'][1: -1].split(", ")]
